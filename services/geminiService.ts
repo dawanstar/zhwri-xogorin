@@ -1,17 +1,17 @@
-import { GoogleGenAI } from "@google/genai";
+// OpenRouter Service - Strict Implementation based on User Request
+// Model: google/gemini-3-pro-image-preview
 
-// Helper to convert File to Base64
-const fileToPart = async (file: File): Promise<string> => {
+const OPENROUTER_API_KEY = "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";
+const SITE_URL = "https://vercel.com"; 
+const SITE_NAME = "Kurdish Virtual Try-On";
+
+// Helper to convert File to Base64 Data URL
+const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result as string;
-      // Remove data url prefix (e.g., "data:image/jpeg;base64,")
-      const base64Data = base64String.split(',')[1];
-      resolve(base64Data);
-    };
-    reader.onerror = reject;
     reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
   });
 };
 
@@ -23,85 +23,89 @@ export const generateTryOn = async (
   gender: string,
   onProgress: (msg: string) => void
 ): Promise<string> => {
-  
-  // لێرە کلیلەکەمان داناوە ڕاستەوخۆ
-  const API_KEY = "AIzaSyAGWigERpl0KsoEG-MrX_6eReVdLz3ol38";
 
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
-  const faceBase64 = await fileToPart(faceFile);
-  const clothBase64 = await fileToPart(clothFile);
+  try {
+    // 1. Convert images to Base64
+    onProgress("ئامادەکردنی وێنەکان...");
+    const faceBase64 = await fileToBase64(faceFile);
+    const clothBase64 = await fileToBase64(clothFile);
 
-  // Step 1: Analyze the cloth image
-  onProgress("لێکدانەوەی جلوبەرگ..."); // Analyzing clothing...
+    // 2. Call OpenRouter with the specific Model and Body you requested
+    onProgress("ناردن بۆ OpenRouter (Gemini 3 Pro)...");
 
-  const clothAnalysisPrompt = `
-    Analyze this image of a clothing item. Describe the clothing in high detail, including:
-    - Type of clothing (e.g., t-shirt, dress, jacket)
-    - Color and pattern
-    - Fabric texture
-    - Neckline, sleeve length, and fit
-    - Any distinctive features.
-    Output only the description.
-  `;
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': SITE_URL,
+        'X-Title': SITE_NAME
+      },
+      // This body structure is exactly what you provided
+      body: JSON.stringify({
+        model: 'google/gemini-3-pro-image-preview', // The model you requested
+        messages: [
+            {
+              "role": "user",
+              "content": [
+                {
+                    "type": "text",
+                    "text": `Generate a high-quality photorealistic image of a ${gender === 'نێر' ? 'man' : 'woman'} wearing the clothing from the second image. 
+                    The person uses the face from the first image.
+                    Body: ${height}cm, ${weight}kg.
+                    Output a beautiful fashion shot.`
+                },
+                {
+                    "type": "image_url",
+                    "image_url": { "url": faceBase64 }
+                },
+                {
+                    "type": "image_url",
+                    "image_url": { "url": clothBase64 }
+                }
+              ]
+            }
+          ],
+        modalities: ['image', 'text'] // The specific parameter you asked for
+      }),
+    });
 
-  // Using gemini-1.5-flash for speed/analysis
-  const clothResponse = await ai.models.generateContent({
-    model: 'gemini-1.5-flash',
-    contents: {
-      parts: [
-        { inlineData: { mimeType: clothFile.type, data: clothBase64 } },
-        { text: clothAnalysisPrompt }
-      ]
+    // 3. Handle Response using your specific logic
+    const result = await response.json();
+    console.log("Full Response:", result);
+
+    if (result.error) {
+        throw new Error(`OpenRouter Error: ${result.error.message}`);
     }
-  });
 
-  let clothDescription = "A nice outfit";
-  if (clothResponse.candidates && clothResponse.candidates.length > 0) {
-     const parts = clothResponse.candidates[0].content.parts;
-     if (parts && parts[0].text) {
-        clothDescription = parts[0].text;
-     }
-  }
-
-  // Step 2: Generate the try-on image
-  onProgress("دروستکردنی وێنە..."); // Generating image...
-
-  const finalPrompt = `
-    Generate a high-quality, photorealistic full-body image of a ${gender === 'نێر' ? 'man' : 'woman'}.
-    The person has the face provided in the first image (face image).
-    The person is wearing the clothing described as: ${clothDescription}.
-    The person's body proportions correspond to a height of ${height}cm and a weight of ${weight}kg.
-    The pose should be natural, standing, showcasing the outfit clearly.
-    Ensure the lighting is professional fashion studio lighting.
-  `;
-
-  // We pass the face image as a reference
-  const imageResponse = await ai.models.generateContent({
-    model: 'gemini-2.0-flash-exp', // Updated to latest model for best results
-    contents: {
-      parts: [
-        { inlineData: { mimeType: faceFile.type, data: faceBase64 } }, // The face reference
-        { text: finalPrompt }
-      ]
-    }
-  });
-
-  // Extract image
-  let generatedImageUrl = '';
-  const candidates = imageResponse.candidates;
-  if (candidates && candidates.length > 0) {
-    const parts = candidates[0].content.parts;
-    for (const part of parts) {
-      if (part.inlineData && part.inlineData.data) {
-        generatedImageUrl = `data:image/png;base64,${part.inlineData.data}`;
-        break;
+    if (result.choices) {
+      const message = result.choices[0].message;
+      
+      // Your specific check for message.images
+      // @ts-ignore
+      if (message.images) {
+        // @ts-ignore
+        const imageObj = message.images[0];
+        if (imageObj && imageObj.image_url && imageObj.image_url.url) {
+            return imageObj.image_url.url;
+        }
+      }
+      
+      // Fallback: Check standard content just in case the format varies slightly
+      if (message.content) {
+          const content = message.content;
+          // Check for Base64 or URL in content
+          if (content.includes("data:image")) return content;
+          const urlMatch = content.match(/\((https?:\/\/.*?)\)/) || content.match(/src="(.*?)"/);
+          if (urlMatch) return urlMatch[1];
+          if (content.startsWith("http")) return content;
       }
     }
-  }
 
-  if (!generatedImageUrl) {
-    throw new Error("نەتوانرا وێنە دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.");
-  }
+    throw new Error("وێنە لە وەڵامەکەدا نەدۆزرایەوە (No image in response).");
 
-  return generatedImageUrl;
+  } catch (error: any) {
+    console.error("Gemini 3 Service Error:", error);
+    throw new Error(error.message || "کێشەیەک ڕوویدا. تکایە دڵنیابەرەوە مۆدێلەکە لە OpenRouter بەردەستە.");
+  }
 };
