@@ -1,0 +1,5 @@
+{
+  "name": "Kurdish Virtual Try-On AI",
+  "description": "A final year project application that uses Google Gemini AI to visualize clothing on a user based on their photo and body measurements.",
+  "requestFramePermissions": []
+}
