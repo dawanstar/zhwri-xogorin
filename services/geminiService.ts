@@ -24,26 +24,29 @@ export const generateTryOn = async (
   onProgress: (msg: string) => void
 ): Promise<string> => {
   
-  if (!process.env.API_KEY) {
-    throw new Error("API Key is missing in environment variables.");
-  }
+  // لێرە کلیلەکەمان داناوە ڕاستەوخۆ
+  const API_KEY = "AIzaSyAGWigERpl0KsoEG-MrX_6eReVdLz3ol38";
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
   const faceBase64 = await fileToPart(faceFile);
   const clothBase64 = await fileToPart(clothFile);
 
-  // Step 1: Analyze the cloth image to create a highly detailed text description
-  // Using gemini-3-pro-preview (mapped from gemini-2.5 pro request) for advanced reasoning
+  // Step 1: Analyze the cloth image
   onProgress("لێکدانەوەی جلوبەرگ..."); // Analyzing clothing...
 
   const clothAnalysisPrompt = `
-    Analyze this image of clothing in extreme detail. 
-    Describe the type of clothing, the fabric texture, the color, the pattern, the cut, and the fit.
-    Do not include any intro or outro text, just the description.
+    Analyze this image of a clothing item. Describe the clothing in high detail, including:
+    - Type of clothing (e.g., t-shirt, dress, jacket)
+    - Color and pattern
+    - Fabric texture
+    - Neckline, sleeve length, and fit
+    - Any distinctive features.
+    Output only the description.
   `;
 
-  const analysisResponse = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
+  // Using gemini-1.5-flash for speed/analysis
+  const clothResponse = await ai.models.generateContent({
+    model: 'gemini-1.5-flash',
     contents: {
       parts: [
         { inlineData: { mimeType: clothFile.type, data: clothBase64 } },
@@ -52,10 +55,15 @@ export const generateTryOn = async (
     }
   });
 
-  const clothDescription = analysisResponse.text || "Modern clothing";
+  let clothDescription = "A nice outfit";
+  if (clothResponse.candidates && clothResponse.candidates.length > 0) {
+     const parts = clothResponse.candidates[0].content.parts;
+     if (parts && parts[0].text) {
+        clothDescription = parts[0].text;
+     }
+  }
 
-  // Step 2: Generate the final image
-  // Using gemini-2.5-flash-image (Nano Banana) for generation
+  // Step 2: Generate the try-on image
   onProgress("دروستکردنی وێنە..."); // Generating image...
 
   const finalPrompt = `
@@ -67,9 +75,9 @@ export const generateTryOn = async (
     Ensure the lighting is professional fashion studio lighting.
   `;
 
-  // We pass the face image as a reference for the person's identity
+  // We pass the face image as a reference
   const imageResponse = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
+    model: 'gemini-2.0-flash-exp', // Updated to latest model for best results
     contents: {
       parts: [
         { inlineData: { mimeType: faceFile.type, data: faceBase64 } }, // The face reference
@@ -92,7 +100,7 @@ export const generateTryOn = async (
   }
 
   if (!generatedImageUrl) {
-    throw new Error("Failed to generate image. Please try again.");
+    throw new Error("نەتوانرا وێنە دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.");
   }
 
   return generatedImageUrl;
