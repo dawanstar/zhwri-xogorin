@@ -1,4 +1,4 @@
-// OpenRouter Service - Cost Effective & Fast
+// OpenRouter Service - Fixed & Complete
 // Model: google/gemini-2.5-flash-image
 
 const OPENROUTER_API_KEY = "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";
@@ -42,7 +42,7 @@ export const generateTryOn = async (
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        "model": "google/gemini-2.5-flash-image", // مۆدێلە هەرزان و خێراکە
+        "model": "google/gemini-2.5-flash-image",
         "messages": [
           {
             "role": "user",
@@ -58,13 +58,13 @@ export const generateTryOn = async (
               {
                 "type": "image_url",
                 "image_url": {
-                  "url": faceBase64 // وێنەی دەموچاو
+                  "url": faceBase64
                 }
               },
               {
                 "type": "image_url",
                 "image_url": {
-                  "url": clothBase64 // وێنەی جلەکە
+                  "url": clothBase64
                 }
               }
             ]
@@ -104,4 +104,8 @@ export const generateTryOn = async (
 
     throw new Error("وێنە دروست نەکرا (No image returned).");
 
-  } catch (error:
+  } catch (error: any) {
+    console.error("Service Error:", error);
+    throw new Error(error.message || "کێشەیەک ڕوویدا. تکایە دڵنیابەرەوە ئینتەرنێتەکەت باشە.");
+  }
+};
