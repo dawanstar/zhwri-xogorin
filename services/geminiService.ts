@@ -1,11 +1,11 @@
-// OpenRouter Service - Fixed & Complete
+// OpenRouter Service - Robust Version (Fixed Image Extraction)
 // Model: google/gemini-2.5-flash-image
 
 const OPENROUTER_API_KEY = "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";
 const SITE_URL = "https://vercel.com"; 
 const SITE_NAME = "Kurdish Virtual Try-On";
 
-// Helper to convert File to Base64 Data URL
+// Helper to convert File to Base64
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -25,13 +25,11 @@ export const generateTryOn = async (
 ): Promise<string> => {
 
   try {
-    // 1. ئامادەکردنی وێنەکان بۆ Base64
     onProgress("ئامادەکردنی وێنەکان...");
     const faceBase64 = await fileToBase64(faceFile);
     const clothBase64 = await fileToBase64(clothFile);
 
-    // 2. ناردنی داواکاری بۆ OpenRouter
-    onProgress("دروستکردنی وێنە (Gemini 2.5 Flash)...");
+    onProgress("دروستکردنی وێنە (چاوەڕێ بە)...");
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -49,63 +47,73 @@ export const generateTryOn = async (
             "content": [
               {
                 "type": "text",
-                "text": `Generate a photorealistic image of a ${gender === 'نێر' ? 'man' : 'woman'} wearing the clothing shown in the second image.
-                - Use the face from the first image.
-                - Body metrics: Height ${height}cm, Weight ${weight}kg.
-                - The output must be a high-quality fashion photo.
-                - Return only the image.`
+                "text": `Create a photorealistic fashion image. 
+                Person: ${gender === 'نێر' ? 'man' : 'woman'} with the provided face.
+                Clothing: Wear the provided clothing item.
+                Body: ${height}cm, ${weight}kg.
+                Output ONLY the image.`
               },
-              {
-                "type": "image_url",
-                "image_url": {
-                  "url": faceBase64
-                }
-              },
-              {
-                "type": "image_url",
-                "image_url": {
-                  "url": clothBase64
-                }
-              }
+              { "type": "image_url", "image_url": { "url": faceBase64 } },
+              { "type": "image_url", "image_url": { "url": clothBase64 } }
             ]
           }
         ]
       })
     });
 
-    // 3. وەرگرتنەوەی وەڵام
     const result = await response.json();
-    console.log("Gemini 2.5 Flash Response:", result);
+    console.log("FULL API RESPONSE:", JSON.stringify(result, null, 2)); // سەیری کۆنسۆڵ بکە بۆ دیتنی وەڵامەکە
 
+    // پشکنینی هەڵە لەلایەن OpenRouter
     if (result.error) {
-       throw new Error(`OpenRouter Error: ${result.error.message}`);
+       // ئەگەر پارە نەما یان کێشە هەبوو، لێرە پێت دەڵێت
+       throw new Error(`هەڵەی مۆدێل: ${result.error.message}`);
     }
 
+    // گەڕان بەدوای وێنەکەدا بە هەموو شێوازێک
     if (result.choices && result.choices.length > 0) {
       const message = result.choices[0].message;
       const content = message.content;
 
-      // پشکنین بۆ لینک لەناو وەڵامەکەدا
+      // 1. ئەگەر ڕاستەوخۆ وێنە بێت (DALL-E Style)
+      // @ts-ignore
+      if (message.images && message.images.length > 0) {
+         // @ts-ignore
+         return message.images[0].image_url.url;
+      }
+
       if (content) {
-        // ئەگەر وێنەکە وەک لینک هات
-        const urlMatch = content.match(/\((https?:\/\/.*?)\)/) || content.match(/src="(.*?)"/) || content.match(/(https?:\/\/.*?\.(?:png|jpg|jpeg|webp))/);
-        if (urlMatch) return urlMatch[1];
+        // 2. ئەگەر لینک بێت لە شێوەی Markdown: ![text](url)
+        const mdMatch = content.match(/\!\[.*?\]\((.*?)\)/);
+        if (mdMatch) return mdMatch[1];
+
+        // 3. ئەگەر لینک بێت لە شێوەی HTML: src="url"
+        const htmlMatch = content.match(/src="(.*?)"/);
+        if (htmlMatch) return htmlMatch[1];
+
+        // 4. ئەگەر تەنها لینکێکی سادە بێت (http...)
+        const urlMatch = content.match(/(https?:\/\/[^\s\)]+)/);
+        if (urlMatch) {
+            // پاککردنەوەی لینکەکە لە خاڵ و کەوانە
+            return urlMatch[1].replace(/[\)\]"\.]+$/, "");
+        }
         
-        // ئەگەر وێنەکە وەک Base64 هات
+        // 5. ئەگەر Base64 بێت
         if (content.includes("data:image")) {
             const base64Match = content.match(/data:image\/[^;]+;base64,[^")\s]+/);
             if (base64Match) return base64Match[0];
         }
 
-        // ئەگەر تەواوی ناوەڕۆکەکە تەنها لینک بوو
-        if (content.startsWith("http")) return content;
+        // ئەگەر تێکست هاتەوە بەڵام وێنەی تێدا نەبوو (Refusal)
+        console.warn("تێکست هاتەوە بەڵام وێنە نەبوو:", content);
+        throw new Error("مۆدێلەکە تەنها نووسینی نارد. تکایە دووبارە هەوڵبدەرەوە.");
       }
     }
 
-    throw new Error("وێنە دروست نەکرا (No image returned).");
+    throw new Error("هیچ وێنەیەک لە وەڵامەکەدا نەدۆزرایەوە.");
 
   } catch (error: any) {
-    console.error("Service Error:", error);
-    throw new Error(error.message || "کێشەیەک ڕوویدا. تکایە دڵنیابەرەوە ئینتەرنێتەکەت باشە.");
+    console.error("Gemini Service Error:", error);
+    throw new Error(error.message || "کێشەیەک ڕوویدا.");
   }
 };
