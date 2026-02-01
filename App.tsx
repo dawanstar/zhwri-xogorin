@@ -287,7 +287,6 @@ export default function App() {
                   </div>
                   <h3 className="text-xl font-bold text-slate-800 mb-2 animate-pulse">{state.loadingMessage}</h3>
                   <p className="text-slate-500 text-sm">ئەم کردارە چەند چرکەیەک دەخایەنێت...</p>
-                  <p className="text-xs text-brand-500 mt-4 bg-brand-50 px-3 py-1 rounded-full">Gemini 2.5 Pro & Nano Banana</p>
                 </div>
               )}
 
