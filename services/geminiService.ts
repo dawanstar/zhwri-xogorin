@@ -1,18 +1,22 @@
-// OpenRouter Service - Advanced Hybrid Model Approach
-// Step 1: Analysis using google/gemini-2.5-pro (The Brain)
-// Step 2: Generation using google/gemini-2.5-flash-image (The Artist)
+// OpenRouter Service - 100% Original Mechanism Replication
+// Models: google/gemini-3-pro-preview & google/gemini-2.5-flash-image
 
 const OPENROUTER_API_KEY = "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";
 const SITE_URL = "https://vercel.com"; 
 const SITE_NAME = "Kurdish Virtual Try-On";
 
-// Helper to convert File to Base64
-const fileToBase64 = (file: File): Promise<string> => {
+// Helper to convert File to Base64 (Matches original logic)
+const fileToPart = async (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      // Remove data url prefix (e.g., "data:image/jpeg;base64,")
+      const base64Data = base64String.split(',')[1];
+      resolve(base64Data);
+    };
+    reader.onerror = reject;
     reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
   });
 };
 
@@ -26,15 +30,26 @@ export const generateTryOn = async (
 ): Promise<string> => {
 
   try {
-    onProgress("ئامادەکردنی فایلەکان...");
-    const faceBase64 = await fileToBase64(faceFile);
-    const clothBase64 = await fileToBase64(clothFile);
+    // 0. Prepare Files
+    const faceBase64 = await fileToPart(faceFile);
+    const clothBase64 = await fileToPart(clothFile);
+    
+    // Construct Data URLs for OpenRouter (Required format: data:image/png;base64,...)
+    const faceDataUrl = `data:${faceFile.type};base64,${faceBase64}`;
+    const clothDataUrl = `data:${clothFile.type};base64,${clothBase64}`;
 
     // ============================================================
-    // STEP 1: ENHANCED PROMPT ANALYSIS (Gemini 2.5 Pro)
-    // شیکارکردنی هەردوو وێنەکە (ڕووخسار و جل) بۆ دەرهێنانی وردەکارییەکان
+    // STEP 1: Analyze the cloth image (EXACT ORIGINAL MECHANISM)
+    // Model: google/gemini-3-pro-preview
     // ============================================================
-    onProgress("شیکارکردنی زیرەک (Gemini 2.5 Pro)..."); 
+    onProgress("لێکدانەوەی جلوبەرگ..."); 
+
+    // Original Prompt preserved EXACTLY
+    const clothAnalysisPrompt = `
+    Analyze this image of clothing in extreme detail. 
+    Describe the type of clothing, the fabric texture, the color, the pattern, the cut, and the fit.
+    Do not include any intro or outro text, just the description.
+    `;
 
     const analysisResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -45,33 +60,20 @@ export const generateTryOn = async (
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        "model": "google/gemini-2.5-pro", // مۆدێلی ژمارە ١: بۆ تێگەیشتن
+        "model": "google/gemini-3-pro-preview", // Requested Model
         "messages": [
           {
             "role": "user",
             "content": [
               {
                 "type": "text",
-                "text": `You are an expert fashion photographer and AI prompt engineer. 
-                I will provide two images:
-                1. A reference face image.
-                2. A reference clothing image.
-                
-                YOUR TASK:
-                Analyze BOTH images in extreme detail. 
-                - Describe the person's key facial features, skin tone, hair style, and lighting in the first image.
-                - Describe the clothing's fabric, texture, folds, logo, zipper/buttons, and fit in the second image.
-                - Combine these into a single, highly descriptive prompt that an image generator can use to reconstruct this person wearing this cloth.
-                
-                Return ONLY the enhanced prompt description.`
+                "text": clothAnalysisPrompt
               },
               {
                 "type": "image_url",
-                "image_url": { "url": faceBase64 } // وێنەی یەکەم: فەیس
-              },
-              {
-                "type": "image_url",
-                "image_url": { "url": clothBase64 } // وێنەی دووەم: جل
+                "image_url": {
+                  "url": clothDataUrl
+                }
               }
             ]
           }
@@ -79,24 +81,35 @@ export const generateTryOn = async (
       })
     });
 
-    const analysisData = await analysisResponse.json();
+    const analysisResult = await analysisResponse.json();
     
-    // پشکنین بۆ هەڵە لە مۆدێلی یەکەم
-    if (analysisData.error) {
-         console.error("Pro Analysis Error:", analysisData.error);
-         // ئەگەر 2.5 Pro کێشەی هەبوو، بەردەوام دەبین بە وەسفێکی گشتی تا پڕۆسەکە نەوەستێت
+    // Error handling for Step 1
+    if (analysisResult.error) {
+        console.error("Step 1 Error:", analysisResult.error);
+        throw new Error(`Analysis Error: ${analysisResult.error.message}`);
     }
-    
-    const detailedPrompt = analysisData.choices?.[0]?.message?.content || "A person wearing this outfit";
-    console.log("Analysis Result:", detailedPrompt);
+
+    const clothDescription = analysisResult.choices?.[0]?.message?.content || "Modern clothing";
+    console.log("Step 1 Output (Description):", clothDescription);
+
 
     // ============================================================
-    // STEP 2: IMAGE GENERATION (Gemini 2.5 Flash Image)
-    // دروستکردنی وێنەی کۆتایی بە بەکارهێنانی شیکارەکە + وێنەکان
+    // STEP 2: Generate the final image (EXACT ORIGINAL MECHANISM)
+    // Model: google/gemini-2.5-flash-image
     // ============================================================
-    onProgress("دروستکردنی وێنە (Gemini 2.5 Flash Image)...");
+    onProgress("دروستکردنی وێنە...");
 
-    const generateResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    // Original Prompt preserved EXACTLY
+    const finalPrompt = `
+    Generate a high-quality, photorealistic full-body image of a ${gender === 'نێر' ? 'man' : 'woman'}.
+    The person has the face provided in the first image (face image).
+    The person is wearing the clothing described as: ${clothDescription}.
+    The person's body proportions correspond to a height of ${height}cm and a weight of ${weight}kg.
+    The pose should be natural, standing, showcasing the outfit clearly.
+    Ensure the lighting is professional fashion studio lighting.
+    `;
+
+    const imageResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
@@ -105,29 +118,20 @@ export const generateTryOn = async (
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        "model": "google/gemini-2.5-flash-image", // مۆدێلی ژمارە ٢: بۆ وێنەکێشان
+        "model": "google/gemini-2.5-flash-image", // Requested Model
         "messages": [
           {
             "role": "user",
             "content": [
               {
                 "type": "text",
-                "text": `Generate a photorealistic 4K fashion shot based on this description: ${detailedPrompt}.
-                
-                REQUIREMENTS:
-                - Subject: A ${gender === 'نێر' ? 'man' : 'woman'} with the EXACT face from the first image provided.
-                - Attire: Wearing the EXACT clothing from the second image provided.
-                - Body Stats: Height ${height}cm, Weight ${weight}kg.
-                - Style: Professional full-body shot, natural pose, highly detailed texture.
-                - IMPORTANT: The output must be the image only.`
+                "text": finalPrompt
               },
               {
                 "type": "image_url",
-                "image_url": { "url": faceBase64 } // ناردنەوەی وێنەی فەیس بۆ دیقەتی زیاتر
-              },
-              {
-                "type": "image_url",
-                "image_url": { "url": clothBase64 } // ناردنەوەی وێنەی جل بۆ دیقەتی زیاتر
+                "image_url": {
+                  "url": faceDataUrl // Passing face as reference
+                }
               }
             ]
           }
@@ -135,38 +139,38 @@ export const generateTryOn = async (
       })
     });
 
-    const result = await generateResponse.json();
-    console.log("Generation Result:", result);
+    const imageResult = await imageResponse.json();
+    console.log("Step 2 Output (Raw):", imageResult);
 
     // ============================================================
-    // EXTRACTION LOGIC (هەمان لۆژیکی زیرەک بۆ دەرهێنانی وێنە)
+    // EXTRACT IMAGE (Matches original goal: get the image data)
     // ============================================================
-    if (result.choices && result.choices.length > 0) {
-      const message = result.choices[0].message;
-      
-      // 1. Check for DALL-E style image array (هەندێک جار وایە)
+    if (imageResult.choices && imageResult.choices.length > 0) {
+      const message = imageResult.choices[0].message;
+      const content = message.content;
+
+      // 1. Check for DALL-E style image array (Often used by image models)
       // @ts-ignore
       if (message.images && message.images.length > 0) {
          // @ts-ignore
          return message.images[0].image_url.url;
       }
 
-      // 2. Check content string (زۆربەی کات وایە)
-      const content = message.content;
+      // 2. Check content string for URL or Base64
       if (content) {
-        // Markdown Match
+        // Markdown format ![alt](url)
         const mdMatch = content.match(/\!\[.*?\]\((.*?)\)/);
         if (mdMatch) return mdMatch[1];
 
-        // HTML Match
+        // HTML format src="url"
         const htmlMatch = content.match(/src="(.*?)"/);
         if (htmlMatch) return htmlMatch[1];
 
-        // Raw URL Match
+        // Raw URL
         const urlMatch = content.match(/(https?:\/\/[^\s\)]+)/);
         if (urlMatch) return urlMatch[1].replace(/[\)\]"\.]+$/, "");
 
-        // Base64 Match
+        // Base64 Data
         if (content.includes("data:image")) {
            const base64Match = content.match(/data:image\/[^;]+;base64,[^")\s]+/);
            if (base64Match) return base64Match[0];
@@ -174,14 +178,14 @@ export const generateTryOn = async (
       }
     }
 
-    if (result.error) {
-        throw new Error(`Generation Error: ${result.error.message}`);
+    if (imageResult.error) {
+        throw new Error(`Generation Error: ${imageResult.error.message}`);
     }
 
-    throw new Error("وێنە دروست نەکرا. تکایە دووبارە هەوڵبدەرەوە.");
+    throw new Error("Failed to generate image. Please try again.");
 
   } catch (error: any) {
-    console.error("Try-On Process Error:", error);
-    throw new Error(error.message || "کێشەیەک ڕوویدا لە کاتی پەیوەندی کردن بە سێرڤەر.");
+    console.error("Gemini Service Error:", error);
+    throw new Error(error.message || "An unknown error occurred.");
   }
 };
