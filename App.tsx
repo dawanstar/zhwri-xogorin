@@ -452,11 +452,6 @@ export default function App() {
         </div>
       </main>
 
-      <footer className="bg-slate-900 text-slate-400 py-6 text-center text-sm">
-        <p>Developed with ❤️ using Google Gemini 2.5 Pro & Nano Banana</p>
-        <p className="mt-1 opacity-60">Final Year Project - Computer Science</p>
-      </footer>
-
       {/* Tailwind Custom Animations */}
       <style>{`
         @keyframes fadeIn {
