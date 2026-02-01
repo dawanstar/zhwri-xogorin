@@ -141,7 +141,7 @@ export default function App() {
               AI
             </div>
             <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-l from-slate-900 to-slate-700">
-              Virtual Try-On
+              Zhuri Xogorin
             </h1>
           </div>
           <span className="text-xs font-medium px-3 py-1 bg-brand-50 text-brand-700 rounded-full border border-brand-100">
