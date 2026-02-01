@@ -140,7 +140,7 @@ export default function App() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center text-white font-bold text-lg">
               AI
             </div>
-            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-l from-slate-500 to-slate-700">
+            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-l from-slate-900 to-slate-700">
               Zhuri Xogorin
             </h1>
           </div>
